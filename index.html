@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小小地方官 - 邏輯與價值挑戰</title>
+    <style>
+        :root {
+            --card-bg: #FFFFFF;
+            --card-border: #D1D8E0;
+            --bg: #F5F6FA;
+            --accent: #2D3436;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg);
+            display: flex; flex-direction: column; align-items: center;
+            padding: 10px; margin: 0; color: #2D3436; overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        #start-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; height: 100vh; width: 100%;
+            background: linear-gradient(135deg, #F5F6FA 0%, #D1D8E0 100%);
+            position: fixed; top: 0; left: 0; z-index: 100; transition: 0.5s;
+        }
+
+        .btn-main {
+            background: var(--accent); color: white; padding: 15px 40px; font-size: 1.4rem;
+            border-radius: 100px; cursor: pointer; border: 5px solid white;
+            box-shadow: 0 8px 0px #000000; font-weight: 900; transition: 0.2s; outline: none;
+        }
+
+        #game-container {
+            display: none; width: 100%; max-width: 900px; background: white;
+            padding: 20px; border-radius: 40px; box-shadow: 0 15px 0px #E6E6E6;
+            margin-top: 10px; border: 6px solid var(--accent);
+        }
+
+        .mission-box {
+            background: #F8F9FA; border-radius: 25px; padding: 20px;
+            margin-bottom: 20px; border: 2px solid #EEE; text-align: center;
+        }
+
+        .instruction {
+            background: #FFF3CD; padding: 15px; border-radius: 15px; margin-bottom: 20px;
+            font-weight: 900; text-align: center; font-size: 1.1rem; border: 2px solid #FFE69A;
+            color: #856404; transition: 0.3s;
+        }
+
+        .event-list {
+            display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 30px;
+            min-height: 120px; padding: 15px; background: #F8F9FA; border-radius: 30px;
+            border: 3px inset #DFE6E9; width: 100%;
+        }
+
+        .event-card {
+            width: calc(50% - 10px); max-width: 180px; padding: 15px; border-radius: 12px; cursor: grab;
+            background-color: var(--card-bg);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-weight: 700;
+            text-align: center; display: flex; align-items: center; justify-content: center;
+            font-size: 0.95rem; line-height: 1.4; border: 2px solid var(--card-border);
+        }
+
+        .slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
+        @media (min-width: 600px) { .slots { grid-template-columns: repeat(4, 1fr); } }
+
+        .slot {
+            background: #FFFFFF; border: 3px dashed #DFE6E9; border-radius: 25px;
+            min-height: 160px; display: flex; flex-direction: column; align-items: center; 
+            padding: 8px; transition: 0.3s; width: 100%; overflow: hidden;
+        }
+        .slot.drag-over { background: #F1F2F6; border-color: var(--accent); }
+        .slot-header { font-weight: 900; color: #636E72; margin-bottom: 10px; font-size: 0.9rem; }
+        .slot .event-card { width: 100%; max-width: 100%; margin: 0; border-color: var(--accent); }
+
+        #result-area { display: none; border-top: 5px solid #F1F2F6; margin-top: 30px; padding-top: 20px; width: 100%; }
+        .score-display { font-size: 2.2rem; text-align: center; font-weight: 900; color: #D63031; margin-bottom: 20px; }
+        
+        .feedback-bubble {
+            background: white; padding: 18px; border-radius: 25px; border-left: 10px solid var(--accent);
+            font-size: 1.05rem; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            line-height: 1.5; width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1>🏛️ 小小地方官</h1>
+    <p>陳情案件已堆積如山，請運用智慧排出處理順序。<br>仔細閱讀，判斷什麼最緊急！</p>
+    <button class="btn-main" onclick="startGame()">開始受理陳情</button>
+</div>
+
+<div id="game-container">
+    <div class="mission-box">
+        <h3>📋 今日任務清單</h3>
+        <p>請將下方四件陳情案中，判斷哪一件對社區的<b>即時影響最大</b>。</p>
+    </div>
+
+    <div class="instruction" id="guide-text">💡 請將最緊急的案件，拖動到「第 1 優先」格。</div>
+    
+    <div class="event-list" id="eventPool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+
+    <div class="slots">
+        <div class="slot" ondrop="drop(event)" ondragover="allowDrop(event)" id="s1"><div class="slot-header">第 1 優先</div></div>
+        <div class="slot" ondrop="drop(event)" ondragover="allowDrop(event)" id="s2"><div class="slot-header">第 2 順位</div></div>
+        <div class="slot" ondrop="drop(event)" ondragover="allowDrop(event)" id="s3"><div class="slot-header">第 3 順位</div></div>
+        <div class="slot" ondrop="drop(event)" ondragover="allowDrop(event)" id="s4"><div class="slot-header">第 4 順位</div></div>
+    </div>
+
+    <button id="submit-btn" class="btn-main" style="margin:40px auto; display:block;" onclick="submitDecision()">提交決策</button>
+
+    <div id="result-area">
+        <div class="score-display" id="score"></div>
+        <div id="ai-feedback-container"></div>
+        <button onclick="resetGame()" class="btn-main" style="margin: 30px auto; display:block; background:#636E72;">受理下一組陳情</button>
+    </div>
+</div>
+
+<script>
+    const eventPoolRaw = {
+        safety: ["瓦斯味在巷口飄散，疑似管線外洩", "紅綠燈故障失效，路口車流混亂", "大樓防火門被鎖死，火災時無法逃生", "救生圈被偷，海邊現場無救生器材", "滅火器過期發不出水", "虎頭蜂在校門口築巢，威脅學生安全", "電線桿被撞歪，隨時可能倒塌", "老舊外牆磁磚剝落，砸中路邊機車", "施工現場未設圍籬，路人差點摔進深坑", "路面出現巨大坑洞，導致多名騎士摔倒"],
+        neighbor: ["隔壁鄰居半夜大聲練鼓", "機車亂停擋住公共走道", "有人亂餵鴿子導致滿地鳥屎", "有人在公共走廊抽菸", "冷氣水滴到行人頭上"],
+        build: ["爭取在社區門口設公車站", "修復斷掉的社區小木橋", "爭取校園老舊廁所大翻新", "規劃全鎮共享單車租借站", "爭取在公園增設無障礙坡道"],
+        culture: ["發現生病的老樟樹", "辦理家鄉母語演講比賽", "發起後山淨山活動", "修復土地公廟", "舉辦家鄉歷史照片特展"]
+    };
+
+    const characters = [
+        { name: "👧 小鎮網紅 婷婷", ok: "「剛才那個現場超驚險！還好長官動作快，我要發限動幫你按讚！」", fail: "「天哪...長官你是不是沒看新聞？那邊都快出人命了，你還在處理這個？我真的『芭比Q』了。」" },
+        { name: "🧛‍♂️ 毒舌評論家 錢先生", ok: "「這次優先處理安全問題，算你還有邏輯。沒人命就沒選票，這點你倒是看得很清。」", fail: "「這就是我們交的稅金嗎？當大家面臨危險時，你居然在處理這點小事？優先順序簡直一團糟。」" },
+        { name: "🩹 專業校醫 汪老師", ok: "「這在醫學上叫『檢傷分類』，你抓住了致死率最高的案件，非常專業。」", fail: "「長官，如果你是急診室醫生，現在外面已經排滿救護車了。安全案件不先處理，後果是毀滅性的。」" },
+        { name: "👵 雜貨店 蔡阿嬤", ok: "「喔唷！這才對嘛！先把火關了，大家才能安心生活，長官你真是有菩薩心。」", fail: "「哎呀長官，家裡瓦斯在漏你卻在打掃客廳？客廳弄再乾淨，房子炸了還有用嗎？」" },
+        { name: "👷 營造廠 工頭大叔", ok: "「專業！這種致命傷就是要先補，不然等事情鬧大，誰都擔待不起。」", fail: "「地基在漏水不去管，去修天花板有啥用？這順序全亂套了！」" },
+        { name: "🎒 地方青年 小明", ok: "「優先守護生存權，這波操作很有進步價值，這才是我們要的官員。」", fail: "「這決策太官僚了！這件事明顯有風險，你卻選擇處理表象，我對這感到憂心。」" },
+        { name: "💼 外商主管 珍妮佛", ok: "「Excellent! 你的 Priority 設定得很完美。在管理中，這絕對是 Top priority。」", fail: "「Oh no! 長官你的 Risk management 有問題喔。這個案件 Impact 這麼大，你卻排在後面？」" },
+        { name: "📰 資深記者 龍哥", ok: "「標題我幫你下好了：『鐵腕官員神調度，第一時間排除地方危機』！」", fail: "「長官，明天的頭條就是『地方無視人命安全』，你要不要再考慮一下？」" },
+        { name: "🚒 退休隊長 廖伯", ok: "「正確的選擇。救災如救火，一秒都不能拖，你的決策拯救了好幾個家庭。」", fail: "「長官，你這是在賭博。如果意外爆發，再多的建設都賠不起一條命。」" },
+        { name: "⚖️ 法律系學生 律律", ok: "「根據比例原則，你的決策符合法治精神，避免了國家賠償的風險。」", fail: "「長官，你知道公務員故意不作為導致傷亡是有刑責的嗎？這順序完全不合法理。」" }
+    ];
+
+    let usedIndices = { safety: [], neighbor: [], build: [], culture: [] };
+    let currentSafetyText = ""; 
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+        initGame();
+    }
+
+    function initGame() {
+        const pool = document.getElementById('eventPool');
+        pool.innerHTML = '';
+        let selected = [];
+        ['safety', 'neighbor', 'build', 'culture'].forEach(tag => {
+            const list = eventPoolRaw[tag];
+            let available = list.map((_, i) => i).filter(i => !usedIndices[tag].includes(i));
+            if (available.length === 0) { usedIndices[tag] = []; available = list.map((_, i) => i); }
+            const idx = available[Math.floor(Math.random() * available.length)];
+            usedIndices[tag].push(idx);
+            if(tag === 'safety') currentSafetyText = list[idx];
+            selected.push({ text: list[idx], tag });
+        });
+        selected.sort(() => Math.random() - 0.5);
+        selected.forEach((ev, i) => {
+            const card = document.createElement('div');
+            card.className = `event-card`;
+            card.innerText = ev.text;
+            card.id = "card-" + Date.now() + i;
+            card.draggable = true;
+            card.dataset.tag = ev.tag;
+            card.addEventListener('dragstart', (e) => e.dataTransfer.setData("text", e.target.id));
+            pool.appendChild(card);
+        });
+        updateGuide();
+    }
+
+    function updateGuide() {
+        const guide = document.getElementById('guide-text');
+        if (!document.getElementById('s1').querySelector('.event-card')) {
+            guide.innerText = "💡 請將最緊急的案件，拖動到「第 1 優先」格。";
+        } else if (!document.getElementById('s2').querySelector('.event-card')) {
+            guide.innerText = "💡 很好！接著請選擇「第 2 順位」的案件。";
+        } else if (!document.getElementById('s3').querySelector('.event-card')) {
+            guide.innerText = "💡 繼續努力！請選擇「第 3 順位」的案件。";
+        } else if (!document.getElementById('s4').querySelector('.event-card')) {
+            guide.innerText = "💡 最後一個案件請放入「第 4 順位」。";
+        } else {
+            guide.innerText = "✅ 排列完成！請點擊下方按鈕提交決策。";
+        }
+    }
+
+    function allowDrop(ev) { ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); }
+
+    function drop(ev) {
+        ev.preventDefault();
+        const slot = ev.currentTarget;
+        slot.classList.remove('drag-over');
+        const data = ev.dataTransfer.getData("text");
+        const card = document.getElementById(data);
+        if (!card) return;
+        
+        if (slot.classList.contains('slot')) {
+            const existing = slot.querySelector('.event-card');
+            if (existing) document.getElementById('eventPool').appendChild(existing);
+            slot.appendChild(card);
+        } else {
+            document.getElementById('eventPool').appendChild(card);
+        }
+        updateGuide();
+    }
+
+    function submitDecision() {
+        const s1 = document.getElementById('s1').querySelector('.event-card');
+        if (!s1) { alert("請至少排出第 1 優先案件！"); return; }
+        
+        const firstTag = s1.dataset.tag;
+        const resArea = document.getElementById('result-area');
+        const feedback = document.getElementById('ai-feedback-container');
+        resArea.style.display = 'block';
+
+        let score = (firstTag === 'safety') ? 98 : 60;
+        document.getElementById('score').innerText = "行政決策評分：" + score + "%";
+
+        const char = characters[Math.floor(Math.random() * characters.length)];
+        const citizenComment = (firstTag === 'safety') ? char.ok : char.fail;
+
+        let aiAdvice = (firstTag === 'safety')
+            ? `🌟 <b>卓越的判斷！</b> 你優先處理了『${currentSafetyText}』。在所有決策中，<b>「生命權」是絕對的最優先級別</b>。`
+            : `⚠️ <b>嚴肅提醒：</b> 你遺漏了正在發生的 <b>『${currentSafetyText}』</b>。請記住，有潛在傷亡風險的案件，永遠必須排在第 1 優先，因為建設可以重來，生命無法挽回。`;
+
+        feedback.innerHTML = `
+            <div class="feedback-bubble"><b>${char.name}：</b>${citizenComment}</div>
+            <div class="feedback-bubble" style="border-left-color: #D63031;">🤖 <b>AI 秘書長核心觀察：</b><br>${aiAdvice}</div>
+        `;
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+
+    function resetGame() {
+        document.getElementById('result-area').style.display = 'none';
+        document.querySelectorAll('.slot').forEach(slot => {
+            const card = slot.querySelector('.event-card');
+            if (card) card.remove();
+        });
+        initGame();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>
